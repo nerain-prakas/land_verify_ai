@@ -1,0 +1,213 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model LandListing {
+  id                     String           @id @default(cuid())
+  sellerId               String
+  status                 ListingStatus    @default(PENDING)
+  propertyType           PropertyType     @default(LAND_ONLY)
+  totalArea              Float?
+  coordinates            Float[]
+  address                String?
+  city                   String?
+  state                  String?
+  country                String           @default("India")
+  geojsonPolygon         Json?
+  videoUrl               String?
+  askingPrice            Int?
+  pricePerSqm            Int?
+  currency               String           @default("INR")
+  title                  String?
+  description            String?
+  images                 String[]
+  thumbnailUrl           String?
+  viewCount              Int              @default(0)
+  inquiryCount           Int              @default(0)
+  createdAt              DateTime         @default(now())
+  updatedAt              DateTime         @updatedAt
+  accessibilityScore     Decimal?         @db.Decimal(3, 2)
+  aiVerificationScore    Decimal?         @db.Decimal(3, 2)
+  boundaryMatchPct       Decimal?         @db.Decimal(3, 1)
+  cropsVisible           String[]
+  distanceToNearestRoadM Int?
+  documentExtracted      Json?
+  fencingStatus          String?
+  floorsVisible          Int?
+  hasStructureDetected   Boolean          @default(false)
+  hospitalsNearbyCount   Int?             @default(0)
+  houseExtensions        String[]
+  houseExteriorScore     Decimal?         @db.Decimal(3, 2)
+  housePaintFreshness    String?
+  houseStyle             String?
+  houseWallColor         String?
+  landTopography         String?
+  marketsNearbyCount     Int?             @default(0)
+  noiseLevelDb           Decimal?         @db.Decimal(4, 1)
+  schoolsNearbyCount     Int?             @default(0)
+  soilColor              String?
+  soilTexture            String?
+  terrainClass           String?
+  videoAnalysis          Json?
+  wallMaterial           String?
+  waterSource            String?
+  seller                 User             @relation(fields: [sellerId], references: [clerkId], onDelete: Cascade)
+  meetingRequests        MeetingRequest[]
+
+  @@index([sellerId])
+  @@index([propertyType])
+  @@index([terrainClass])
+  @@index([hasStructureDetected])
+  @@index([city])
+  @@index([status])
+  @@index([askingPrice])
+  @@index([aiVerificationScore])
+  @@index([createdAt])
+  @@map("land_listings")
+}
+
+model MeetingRequest {
+  id            String        @id @default(cuid())
+  buyerId       String
+  sellerId      String
+  listingId     String
+  status        MeetingStatus @default(PENDING)
+  proposedTimes DateTime[]
+  selectedTime  DateTime?
+  location      String?
+  agenda        String?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+  message       String?
+  buyer         User          @relation("BuyerMeetings", fields: [buyerId], references: [clerkId], onDelete: Cascade)
+  listing       LandListing   @relation(fields: [listingId], references: [id], onDelete: Cascade)
+  seller        User          @relation("SellerMeetings", fields: [sellerId], references: [clerkId], onDelete: Cascade)
+
+  @@index([buyerId])
+  @@index([sellerId])
+  @@index([listingId])
+  @@map("meeting_requests")
+}
+
+model User {
+  id             String           @id @default(cuid())
+  clerkId        String           @unique
+  email          String           @unique
+  firstName      String?
+  lastName       String?
+  imageUrl       String?
+  role           UserRole         @default(BUYER)
+  phone          String?
+  createdAt      DateTime         @default(now())
+  updatedAt      DateTime         @updatedAt
+  address        String?
+  bio            String?
+  city           String?
+  country        String?
+  isVerified     Boolean          @default(false)
+  state          String?
+  verifiedAt     DateTime?
+  zipCode        String?
+  fullName       String?
+  listings       LandListing[]
+  buyerMeetings  MeetingRequest[] @relation("BuyerMeetings")
+  sellerMeetings MeetingRequest[] @relation("SellerMeetings")
+  verifications  Verification[]
+
+  @@index([email])
+  @@index([role])
+  @@map("users")
+}
+
+enum UserRole {
+  BUYER
+  SELLER
+  ADMIN
+}
+
+enum ListingStatus {
+  PENDING
+  VERIFIED
+  LIVE
+  SOLD
+  REJECTED
+}
+
+enum MeetingStatus {
+  PENDING
+  ACCEPTED
+  REJECTED
+  COMPLETED
+  CANCELLED
+}
+
+enum PropertyType {
+  LAND_ONLY
+  LAND_WITH_HOUSE
+  COMMERCIAL
+  AGRICULTURAL
+  INDUSTRIAL
+}
+
+enum VerificationStatus {
+  PENDING
+  IN_PROGRESS
+  COMPLETED
+  FAILED
+}
+
+model Verification {
+  id                String             @id @default(cuid())
+  userId            String
+  status            VerificationStatus @default(PENDING)
+
+  // Step 1: Identity
+  verifiedName      String?
+  surveyNo          String?
+  landStatus        String?
+  totalArea         String?
+  district          String?
+  confidenceScore   Float?
+
+  // Step 2: Land Record
+  nameMatched       Boolean?
+  surveyMatched     Boolean?
+  landClassification String?
+  officialArea      String?
+  isSafeLand        Boolean?
+  displayAddress    String?
+  districtName      String?
+  talukName         String?
+  villageeName      String?
+
+  // Step 3: Video Analysis
+  topography        String?
+  soilType          String?
+  vegetation        String?
+  nearbyInfra       String[]
+  waterPresence     String?
+  boundaryClarity   String?
+  detectedSounds    String[]
+  trafficDensity    String?
+  noiseScore        Float?
+  audioSummary      String?
+  overallVerdict    String?
+  suitabilityScore  Float?
+  recommendations   String?
+  detailedReport    String?         @db.Text
+
+  createdAt         DateTime           @default(now())
+  updatedAt         DateTime           @updatedAt
+
+  user              User               @relation(fields: [userId], references: [clerkId], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([status])
+  @@map("verifications")
+}
